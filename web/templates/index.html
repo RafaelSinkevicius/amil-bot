@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Amil - Interface Web</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Bot Amil - Busca de Prestadores</h1>
+            <p class="subtitle">Interface de controle e monitoramento</p>
+        </header>
+
+        <div class="card">
+            <h2>📊 Status da Execução</h2>
+            <div id="status">
+                <div class="status-row">
+                    <span class="label">Status:</span>
+                    <span id="status-text" class="status-badge">Aguardando...</span>
+                </div>
+                <div class="status-row">
+                    <span class="label">Cidade atual:</span>
+                    <span id="cidade-atual">-</span>
+                </div>
+                <div class="status-row">
+                    <span class="label">Progresso:</span>
+                    <span id="progresso">0</span> / <span id="total">0</span> cidades
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <span id="progress-percent" class="progress-text">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🎮 Controles</h2>
+            <!-- 🔥 NOVO — Mostrar progresso salvo -->
+            <div id="progresso-info" style="margin-bottom: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px; display: none;">
+                <p><strong>📌 Última cidade processada:</strong> <span id="ultima-cidade">-</span></p>
+                <button onclick="limparProgresso()" class="btn" style="background: #ff9800; color: white; margin-top: 5px;">🗑️ Limpar Progresso</button>
+            </div>
+            
+            <div class="buttons">
+                <button id="btn-iniciar" class="btn btn-success" onclick="iniciarBot(true)">
+                    ▶️ Continuar de Onde Parou
+                </button>
+                <button id="btn-iniciar-zero" class="btn btn-success" onclick="iniciarBot(false)" style="background: #2196F3;">
+                    🔄 Começar do Zero
+                </button>
+                <button id="btn-parar" class="btn btn-danger" onclick="pararBot()" disabled>
+                    ⏹️ Parar Execução
+                </button>
+                <button class="btn btn-primary" onclick="downloadPlanilha()">
+                    📥 Baixar Planilha Excel
+                </button>
+                <button class="btn btn-info" onclick="atualizarEstatisticas()">
+                    📊 Atualizar Estatísticas
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📈 Estatísticas</h2>
+            <div id="estatisticas">
+                <p>Total de PDFs: <strong id="total-pdfs">-</strong></p>
+                <div id="estados-stats"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📝 Logs em Tempo Real</h2>
+            <div id="logs" class="logs"></div>
+        </div>
+    </div>
+
+    <script>
+        let intervaloStatus;
+        let ultimoErroMostrado = null; // 🔥 NOVO — Rastrear último erro mostrado
+
+        function atualizarStatus() {
+            fetch('/api/status')
+                .then(r => r.json())
+                .then(data => {
+                    // Status
+                    const statusText = document.getElementById('status-text');
+                    if (data.rodando) {
+                        statusText.textContent = '🟢 Em execução';
+                        statusText.className = 'status-badge running';
+                    } else {
+                        statusText.textContent = '🔴 Parado';
+                        statusText.className = 'status-badge stopped';
+                    }
+
+                    // Cidade atual
+                    document.getElementById('cidade-atual').textContent = 
+                        data.cidade_atual ? `${data.cidade_atual}-${data.uf_atual}` : '-';
+
+                    // Progresso
+                    document.getElementById('progresso').textContent = data.progresso;
+                    document.getElementById('total').textContent = data.total;
+                    
+                    const porcentagem = data.total > 0 ? (data.progresso / data.total) * 100 : 0;
+                    document.getElementById('progress-fill').style.width = porcentagem + '%';
+                    document.getElementById('progress-percent').textContent = Math.round(porcentagem) + '%';
+                    
+                    // Botões
+                    document.getElementById('btn-iniciar').disabled = data.rodando;
+                    document.getElementById('btn-parar').disabled = !data.rodando;
+                    
+                    // 🔥 CORREÇÃO — Mostrar erro apenas uma vez e limpar no servidor
+                    if (data.erro && data.erro !== ultimoErroMostrado) {
+                        ultimoErroMostrado = data.erro;
+                        alert('Erro: ' + data.erro);
+                        // Limpar erro no servidor após mostrar
+                        fetch('/api/limpar-erro', {method: 'POST'}).catch(() => {});
+                    } else if (!data.erro) {
+                        // Se não há mais erro, resetar rastreamento
+                        ultimoErroMostrado = null;
+                    }
+
+                    // Logs
+                    if (data.log && data.log.length > 0) {
+                        const logsDiv = document.getElementById('logs');
+                        logsDiv.innerHTML = data.log.slice(-50).reverse().map(log => 
+                            `<div class="log-line">${log}</div>`
+                        ).join('');
+                    }
+                    
+                    // 🔥 NOVO — Atualizar progresso salvo periodicamente
+                    atualizarProgressoInfo();
+                })
+                .catch(err => console.error('Erro ao atualizar status:', err));
+        }
+
+        function iniciarBot(continuarProgresso = true) {
+            const mensagem = continuarProgresso 
+                ? 'Deseja continuar de onde parou?' 
+                : 'Deseja começar do zero? (Isso limpará o progresso anterior)';
+            
+            if (!confirm(mensagem + '\n\nIsso pode levar várias horas.')) {
+                return;
+            }
+
+            // Resetar rastreamento de erro
+            ultimoErroMostrado = null;
+
+            fetch('/api/iniciar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({continuar_progresso: continuarProgresso})
+            })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.mensagem || data.erro);
+                    if (!data.erro) {
+                        // 🔥 CORREÇÃO — Limpar intervalo anterior antes de criar novo
+                        if (intervaloStatus) {
+                            clearInterval(intervaloStatus);
+                        }
+                        intervaloStatus = setInterval(atualizarStatus, 2000);
+                    }
+                })
+                .catch(err => {
+                    alert('Erro ao iniciar bot: ' + err);
+                });
+        }
+
+        function pararBot() {
+            if (!confirm('Deseja parar a execução do bot?')) {
+                return;
+            }
+
+            // 🔥 NOVO — Resetar rastreamento de erro
+            ultimoErroMostrado = null;
+
+            fetch('/api/parar', {method: 'POST'})
+                .then(r => r.json())
+                .then(data => {
+                    // Não mostrar alert ao parar
+                    if (intervaloStatus) {
+                        clearInterval(intervaloStatus);
+                    }
+                    atualizarStatus();
+                    // 🔥 CORREÇÃO — Recriar intervalo após parar para continuar monitorando
+                    intervaloStatus = setInterval(atualizarStatus, 2000);
+                });
+        }
+
+        function limparProgresso() {
+            if (!confirm('Deseja limpar o progresso salvo? Isso fará o bot começar do zero na próxima execução.')) {
+                return;
+            }
+
+            fetch('/api/limpar-progresso', {method: 'POST'})
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.mensagem);
+                    atualizarProgressoInfo();
+                });
+        }
+
+        function atualizarEstatisticas() {
+            console.log('🔄 Atualizando estatísticas...'); // 🔥 NOVO — Debug
+            
+            // 🔥 CORREÇÃO — Mostrar loading
+            const totalPdfsEl = document.getElementById('total-pdfs');
+            const estadosDiv = document.getElementById('estados-stats');
+            totalPdfsEl.textContent = 'Carregando...';
+            estadosDiv.innerHTML = '<span>Carregando...</span>';
+            
+            fetch('/api/estatisticas')
+                .then(r => {
+                    console.log('📊 Resposta do servidor:', r.status); // 🔥 NOVO — Debug
+                    if (!r.ok) {
+                        throw new Error(`Erro HTTP: ${r.status}`);
+                    }
+                    return r.json();
+                })
+                .then(data => {
+                    console.log('📊 Dados recebidos:', data); // 🔥 NOVO — Debug
+                    
+                    // 🔥 CORREÇÃO — Verificar se há erro na resposta
+                    if (data.erro) {
+                        console.error('❌ Erro ao buscar estatísticas:', data.erro);
+                        totalPdfsEl.textContent = 'Erro';
+                        estadosDiv.innerHTML = 
+                            `<span style="color: red;">Erro: ${data.erro}</span>`;
+                        return;
+                    }
+                    
+                    totalPdfsEl.textContent = data.total_pdfs || 0;
+                    
+                    if (data.estados && Object.keys(data.estados).length > 0) {
+                        estadosDiv.innerHTML = Object.entries(data.estados)
+                            .map(([uf, count]) => `<span class="estado-badge">${uf}: ${count}</span>`)
+                            .join('');
+                    } else {
+                        estadosDiv.innerHTML = '<span>Nenhum PDF encontrado</span>';
+                    }
+                })
+                .catch(err => {
+                    console.error('❌ Erro ao buscar estatísticas:', err);
+                    totalPdfsEl.textContent = 'Erro';
+                    estadosDiv.innerHTML = 
+                        `<span style="color: red;">Erro ao carregar: ${err.message}</span>`;
+                });
+        }
+
+        function atualizarProgressoInfo() {
+            fetch('/api/progresso')
+                .then(r => {
+                    if (!r.ok) {
+                        throw new Error(`Erro HTTP: ${r.status}`);
+                    }
+                    return r.json();
+                })
+                .then(data => {
+                    const infoDiv = document.getElementById('progresso-info');
+                    const cidadeSpan = document.getElementById('ultima-cidade');
+                    
+                    if (data.progresso) {
+                        cidadeSpan.textContent = `${data.progresso.cidade}-${data.progresso.uf}`;
+                        infoDiv.style.display = 'block';
+                    } else {
+                        infoDiv.style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    console.error('Erro ao atualizar progresso:', err);
+                    // Não mostrar erro, apenas não atualizar
+                });
+        }
+
+        function downloadPlanilha() {
+            window.location.href = '/api/planilha';
+        }
+
+        // Inicializar
+        atualizarStatus();
+        atualizarEstatisticas();
+        atualizarProgressoInfo();  // 🔥 NOVO
+        // 🔥 CORREÇÃO — Criar intervalo apenas uma vez na inicialização
+        if (!intervaloStatus) {
+            intervaloStatus = setInterval(atualizarStatus, 2000);
+        }
+    </script>
+</body>
+</html>

@@ -1,6 +1,11 @@
 📊 RESUMO FINAL
-✅ Cidades concluídas com sucesso: 1
+✅ Cidades concluídas com sucesso: 6
 ❌ Cidades com erro: 0
 
 📍 Prestadores por cidade:
-- RIO BRANCO/AC: 11 prestadores
+- CRUZ DAS ALMAS/BA: 0 prestadores
+- DIAS D'AVILA/BA: 2 prestadores
+- ENTRE RIOS/BA: 1 prestadores
+- ESPLANADA/BA: 1 prestadores
+- EUCLIDES DA CUNHA/BA: 1 prestadores
+- EUNAPOLIS/BA: 8 prestadores

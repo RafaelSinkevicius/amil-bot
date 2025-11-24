@@ -34,12 +34,38 @@ def garantir_aba_principal(driver) -> None:
 def aguardar_pagina_carregar(driver, wait: WebDriverWait) -> None:
     """
     Aguarda o carregamento completo da página (document.readyState == 'complete').
+    Para SPAs, também aguarda o JavaScript carregar.
     """
     try:
+        # Aguardar document.readyState
         wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+        
+        # 🔥 CORREÇÃO — Aguardar mais tempo para SPAs carregarem
+        time.sleep(1.0)
+        
+        # 🔥 CORREÇÃO — Verificar se há conteúdo no body
+        try:
+            wait.until(lambda d: d.execute_script("""
+                return document.body && (
+                    document.body.innerHTML.length > 100 ||
+                    document.body.textContent.length > 50
+                );
+            """))
+        except:
+            # Se não houver conteúdo, aguardar mais um pouco
+            time.sleep(2.0)
+            # Verificar novamente
+            try:
+                body_content = driver.execute_script("return document.body ? document.body.innerHTML.length : 0")
+                if body_content < 100:
+                    raise Exception("Body da página está vazio ou muito pequeno")
+            except:
+                pass
+        
         time.sleep(0.5)
     except Exception as e:
         print(f"⚠️ Aviso ao aguardar carregamento: {e}")
+        # Não levantar exceção, apenas logar
 
 
 def clicar_com_retry(locator, driver, wait: WebDriverWait, max_tentativas: int = 3) -> bool:
