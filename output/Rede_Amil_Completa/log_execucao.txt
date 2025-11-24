@@ -1,0 +1,5 @@
+📊 RESUMO FINAL
+✅ Cidades concluídas com sucesso: 0
+❌ Cidades com erro: 0
+
+📍 Prestadores por cidade:

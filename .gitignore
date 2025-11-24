@@ -1,0 +1,39 @@
+# Python / virtual env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+
+# Logs
+*.log
+logs/
+output/*.log
+
+# Chrome / Selenium
+chrome_debug.log
+selenium-screenshot.png
+
+# Cache / temp
+*.cache
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# VSCode / IDEs
+.vscode/
+.idea/
+
+# Sensíveis
+.env
+*.pem
+*.key
+*.crt
+secrets.json
+credentials.json
+
+# NÃO IGNORAR PDFs
+# (pdfs/** deve aparecer no commit!)
