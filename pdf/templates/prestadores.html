@@ -1,0 +1,46 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #004080; }
+        .logo-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logo-bar img {
+            height: 60px;
+        }
+        .prestador {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        .ref {
+            font-size: 14px;
+            color: #444;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="logo-bar">
+        <img src="{{LOGO_AMIL}}" alt="Amil Dental">
+        <img src="{{LOGO_ATIVA}}" alt="Ativa New">
+    </div>
+
+    <div class="ref">
+        <strong>Referência:</strong> {{REFERENCIA}}
+    </div>
+
+    <h1>Rede Credenciada - {{CIDADE}}/{{UF}}</h1>
+    <p><strong>{{TOTAL_PRESTADORES}} prestadores encontrados</strong></p>
+
+    <!--PRESTADORES-->
+
+</body>
+</html>
