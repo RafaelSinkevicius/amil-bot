@@ -11,35 +11,67 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 
 
 # =====================================================
-# 🔹 NOVO — Função para gerar planilha com links públicos
+# 🔹 Função para gerar/atualizar planilha com links públicos
 # =====================================================
-def gerar_planilha_simples(resultado_por_cidade: list[dict]):
+def gerar_planilha_simples(resultado_por_cidade: list[dict], modo_append: bool = False):
     """
-    Cria uma planilha CSV com:
+    Cria ou atualiza uma planilha CSV com:
     id ; cidade ; estado ; link_pdf_publico
+    
+    Args:
+        resultado_por_cidade: Lista de resultados a serem adicionados
+        modo_append: Se True, adiciona ao arquivo existente. Se False, recria o arquivo.
     """
     planilha_dir = REDE_COMPLETA_DIR / "planilhas"
     planilha_dir.mkdir(parents=True, exist_ok=True)
 
     caminho_csv = planilha_dir / "planilha_simples.csv"
+    
+    # Verificar se o arquivo já existe e se tem conteúdo
+    arquivo_existe = caminho_csv.exists() and caminho_csv.stat().st_size > 0
 
     # Base pública do GitHub Pages
     BASE_URL = "https://rafaelsinkevicius.github.io/amil-bot/pdfs"
 
-    with open(caminho_csv, "w", encoding="utf-8", newline="") as f:
+    # Modo de abertura: append se modo_append=True e arquivo existe, senão write
+    modo_abertura = "a" if (modo_append and arquivo_existe) else "w"
+    
+    with open(caminho_csv, modo_abertura, encoding="utf-8", newline="") as f:
         writer = csv.writer(f, delimiter=";")
-        writer.writerow(["id", "cidade", "estado", "link_pdf"])
-
-        for idx, item in enumerate(resultado_por_cidade, start=1):
+        
+        # Só escreve cabeçalho se for modo write (novo arquivo)
+        if modo_abertura == "w":
+            writer.writerow(["id", "cidade", "estado", "link_pdf"])
+        
+        # Se for append, precisamos saber qual foi o último ID usado
+        ultimo_id = 0
+        if modo_abertura == "a" and arquivo_existe:
+            # Ler o arquivo para pegar o último ID
+            try:
+                with open(caminho_csv, "r", encoding="utf-8") as f_read:
+                    linhas = f_read.readlines()
+                    if len(linhas) > 1:  # Tem pelo menos cabeçalho + 1 linha
+                        # Pegar o último ID da última linha
+                        ultima_linha = linhas[-1].strip()
+                        if ultima_linha:
+                            ultimo_id = int(ultima_linha.split(";")[0])
+            except:
+                pass
+        
+        # Escrever as novas cidades
+        for item in resultado_por_cidade:
+            ultimo_id += 1
             cidade = item["cidade"]
             uf = item["uf"]
 
-            pdf_name = f"{cidade}-{uf}.pdf"
+            # 🔥 CORREÇÃO: usar o mesmo formato do get_pdf_path (espaços viram _)
+            nome_arquivo = f"{cidade}-{uf}".replace(" ", "_")
+            pdf_name = f"{nome_arquivo}.pdf"
             link_publico = f"{BASE_URL}/{uf}/{pdf_name}"
 
-            writer.writerow([idx, cidade, uf, link_publico])
+            writer.writerow([ultimo_id, cidade, uf, link_publico])
 
-    print(f"📄 Planilha gerada em: {caminho_csv}")
+    print(f"📄 Planilha {'atualizada' if modo_append else 'gerada'} em: {caminho_csv}")
 
 
 # =====================================================
@@ -86,6 +118,9 @@ def main() -> None:
     resultado_por_cidade_global = []
     cidades_com_erro_global = {}
     contador_cidades = 0
+    
+    # Flag para controlar se já criou o cabeçalho da planilha
+    primeira_vez = True
 
     try:
         for uf, cidades in mapa.items():
@@ -98,6 +133,14 @@ def main() -> None:
                     resultado_por_cidade_global.extend(bot.resultado_por_cidade)
                     for k, v in bot.cidades_com_erro.items():
                         cidades_com_erro_global.setdefault(k, []).extend(v)
+
+                    # 🔥 NOVO — salvar planilha incrementalmente após cada cidade
+                    if bot.resultado_por_cidade:
+                        gerar_planilha_simples(
+                            bot.resultado_por_cidade, 
+                            modo_append=not primeira_vez
+                        )
+                        primeira_vez = False
 
                     # limpa buffers do bot
                     bot.resultado_por_cidade.clear()
@@ -112,8 +155,9 @@ def main() -> None:
     # salva logs normais
     salvar_logs_finais(resultado_por_cidade_global, cidades_com_erro_global)
 
-    # 🔥 NOVO — gerar planilha pública
-    gerar_planilha_simples(resultado_por_cidade_global)
+    # A planilha já foi gerada incrementalmente durante o processamento
+    # Não precisa regenerar no final, mas pode fazer se quiser garantir consistência
+    # gerar_planilha_simples(resultado_por_cidade_global)  # Opcional
 
     logger.info("✅ Execução finalizada.")
 
