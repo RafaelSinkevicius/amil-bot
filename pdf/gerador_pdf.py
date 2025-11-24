@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 import pdfkit
 from datetime import datetime
@@ -38,6 +39,34 @@ def _carregar_template(nome_arquivo: str) -> str:
     caminho = TEMPLATE_DIR / nome_arquivo
     with open(caminho, "r", encoding="utf-8") as f:
         return f.read()
+
+
+# =====================================================================
+#                    COPIAR PDF PARA GITHUB PAGES
+# =====================================================================
+def _copiar_para_github_pages(pdf_path: Path, uf: str) -> None:
+    """
+    Copia o PDF gerado para a pasta docs/pdfs para GitHub Pages.
+    """
+    try:
+        destino_base = SCRIPT_DIR / "docs" / "pdfs"
+        destino_uf = destino_base / uf
+        destino_uf.mkdir(parents=True, exist_ok=True)
+        
+        destino_pdf = destino_uf / pdf_path.name
+        
+        # Copiar apenas se o arquivo foi modificado ou não existe
+        precisa_copiar = True
+        if destino_pdf.exists():
+            if pdf_path.stat().st_mtime <= destino_pdf.stat().st_mtime:
+                precisa_copiar = False
+        
+        if precisa_copiar:
+            shutil.copy2(pdf_path, destino_pdf)
+            print(f"📤 PDF copiado para GitHub Pages: {destino_pdf}")
+    except Exception as e:
+        # Não interrompe o processo se falhar a cópia
+        print(f"⚠️  Aviso: não foi possível copiar para GitHub Pages: {e}")
 
 
 # =====================================================================
@@ -95,6 +124,9 @@ def gerar_pdf_prestadores(uf: str,
 
     pdfkit.from_string(html, str(pdf_path), configuration=PDFKIT_CONFIG, options=options_pdf)
     print(f"✅ PDF salvo: {pdf_path}")
+    
+    # 🔥 NOVO — copiar automaticamente para GitHub Pages
+    _copiar_para_github_pages(pdf_path, uf)
 
 
 # =====================================================================
@@ -129,3 +161,6 @@ def gerar_pdf_sem_especialidade(uf: str,
 
     pdfkit.from_string(html, str(pdf_path), configuration=PDFKIT_CONFIG, options=options_pdf)
     print(f"⚠️ PDF sem especialidade gerado: {pdf_path}")
+    
+    # 🔥 NOVO — copiar automaticamente para GitHub Pages
+    _copiar_para_github_pages(pdf_path, uf)

@@ -7,6 +7,9 @@ OUTPUT_DIR = SCRIPT_DIR / "output"
 REDE_COMPLETA_DIR = OUTPUT_DIR / "Rede_Amil_Completa"
 REDE_SEM_TEL_DIR = OUTPUT_DIR / "Rede_Amil_Sem_Telefone"
 
+# 🔥 NOVO — Diretório para PDFs no GitHub Pages
+DOCS_PDFS_DIR = SCRIPT_DIR / "docs" / "pdfs"
+
 
 def ensure_dir(path: Path) -> Path:
     """Garante que um diretório existe."""

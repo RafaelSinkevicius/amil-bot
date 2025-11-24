@@ -3,7 +3,7 @@ from pathlib import Path
 import csv
 
 from utils.logger import setup_logger
-from utils.file_manager import OUTPUT_DIR, REDE_COMPLETA_DIR
+from utils.file_manager import OUTPUT_DIR, DOCS_PDFS_DIR
 from utils.delays import pausa_estrategica
 from scraper.amil_scraper import AmilBot
 
@@ -22,7 +22,8 @@ def gerar_planilha_simples(resultado_por_cidade: list[dict], modo_append: bool =
         resultado_por_cidade: Lista de resultados a serem adicionados
         modo_append: Se True, adiciona ao arquivo existente. Se False, recria o arquivo.
     """
-    planilha_dir = REDE_COMPLETA_DIR / "planilhas"
+    # 🔥 MUDANÇA: planilha salva em docs/pdfs/planilhas/
+    planilha_dir = DOCS_PDFS_DIR / "planilhas"
     planilha_dir.mkdir(parents=True, exist_ok=True)
 
     caminho_csv = planilha_dir / "planilha_simples.csv"
@@ -31,7 +32,8 @@ def gerar_planilha_simples(resultado_por_cidade: list[dict], modo_append: bool =
     arquivo_existe = caminho_csv.exists() and caminho_csv.stat().st_size > 0
 
     # Base pública do GitHub Pages
-    BASE_URL = "https://rafaelsinkevicius.github.io/amil-bot/pdfs"
+    # 🔥 CORREÇÃO: incluir /docs/pdfs/ no caminho
+    BASE_URL = "https://rafaelsinkevicius.github.io/amil-bot/docs/pdfs"
 
     # Modo de abertura: append se modo_append=True e arquivo existe, senão write
     modo_abertura = "a" if (modo_append and arquivo_existe) else "w"
@@ -84,16 +86,17 @@ def carregar_mapa_estados() -> dict:
 
 
 # =====================================================
-# Logs finais (continua igual)
+# Logs finais (salva em output/ apenas para logs)
 # =====================================================
 def salvar_logs_finais(resultado_por_cidade, cidades_com_erro) -> None:
-    REDE_COMPLETA_DIR.mkdir(parents=True, exist_ok=True)
+    # 🔥 MUDANÇA: logs salvos em output/ (não em docs/)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    caminho_json_erros = REDE_COMPLETA_DIR / "cidades_com_erro.json"
+    caminho_json_erros = OUTPUT_DIR / "cidades_com_erro.json"
     with open(caminho_json_erros, "w", encoding="utf-8") as f:
         json.dump(cidades_com_erro, f, ensure_ascii=False, indent=2)
 
-    caminho_log = REDE_COMPLETA_DIR / "log_execucao.txt"
+    caminho_log = OUTPUT_DIR / "log_execucao.txt"
     total_ok = len(resultado_por_cidade)
     total_erro = sum(len(cidades) for cidades in cidades_com_erro.values())
 
@@ -125,7 +128,8 @@ def main() -> None:
     try:
         for uf, cidades in mapa.items():
             logger.info(f"====== Iniciando UF {uf} ({len(cidades)} cidades) ======")
-            with AmilBot(uf, pasta_base=REDE_COMPLETA_DIR, logger=logger) as bot:
+            # 🔥 MUDANÇA: usar DOCS_PDFS_DIR ao invés de REDE_COMPLETA_DIR
+            with AmilBot(uf, pasta_base=DOCS_PDFS_DIR, logger=logger) as bot:
                 for cidade in cidades:
                     bot.processar_cidade(cidade)
 

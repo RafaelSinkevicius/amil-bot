@@ -161,6 +161,13 @@ class AmilBot:
             if prestadores:
                 gerar_pdf_prestadores(self.uf, cidade, prestadores, self.pasta_base)
                 self._log(f"📄 PDF gerado: {cidade}-{self.uf}")
+                
+                # 🔥 NOVO — adicionar resultado para a planilha
+                self.resultado_por_cidade.append({
+                    "cidade": cidade,
+                    "uf": self.uf,
+                    "prestadores": len(prestadores)
+                })
             else:
                 self._log(f"⚠️ Sem prestadores em {cidade}-{self.uf}")
 
