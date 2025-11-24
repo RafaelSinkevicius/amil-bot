@@ -32,8 +32,9 @@ def gerar_planilha_simples(resultado_por_cidade: list[dict], modo_append: bool =
     arquivo_existe = caminho_csv.exists() and caminho_csv.stat().st_size > 0
 
     # Base pública do GitHub Pages
-    # 🔥 CORREÇÃO: incluir /docs/pdfs/ no caminho
-    BASE_URL = "https://rafaelsinkevicius.github.io/amil-bot/docs/pdfs"
+    # 🔥 CORREÇÃO: quando GitHub Pages serve de /docs/, a pasta docs/ vira a raiz
+    # Então docs/pdfs/ fica acessível como /pdfs/
+    BASE_URL = "https://rafaelsinkevicius.github.io/amil-bot/pdfs"
 
     # Modo de abertura: append se modo_append=True e arquivo existe, senão write
     modo_abertura = "a" if (modo_append and arquivo_existe) else "w"
